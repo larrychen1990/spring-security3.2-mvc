@@ -9,22 +9,27 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
-//import org.springframework.test.web.server.samples.context.WebContextLoader;
 import org.springframework.test.context.web.WebDelegatingSmartContextLoader;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import com.rr.springTest.controllers.UserController;
+import com.rr.springTest.model.SecUserInfo;
+import com.rr.springTest.model.UserInfo;
+import com.rr.springTest.spring.RootConfig;
 import com.rr.springTest.spring.SecurityTestConfig;
 import com.rr.springTest.spring.WebConfig;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-//@ContextConfiguration(classes=SecurityConfig.class)
-@ContextConfiguration(classes={SecurityTestConfig.class, WebConfig.class}, 
+@ContextConfiguration(classes={RootConfig.class, SecurityTestConfig.class, WebConfig.class}, 
 					  loader=WebDelegatingSmartContextLoader.class)
 @WebAppConfiguration
 public class UserControllerTest2 
@@ -36,6 +41,9 @@ public class UserControllerTest2
     private WebApplicationContext wac;
 
     private MockMvc mockMvc;
+    
+    @Autowired
+    private UserController controller;
 
     @Before
     public void setup() {
@@ -44,7 +52,8 @@ public class UserControllerTest2
     }
 
 	@Test
-	public void test() throws Exception {
+	public void test() throws Exception 
+	{
 		
 		mockMvc.perform(get("/users/user/current"))
 			   .andExpect(status().isForbidden());
@@ -59,8 +68,7 @@ public class UserControllerTest2
 			   .andExpect(status().isOk())
 			   .andExpect(content().contentType("application/json;charset=UTF-8"))
 			   .andExpect(content().string("{\"dn\":\"Admin\"}"));
-		
-		/* This doesn't matter becuase it is stateless...
+
 		UserInfo testInfo = new UserInfo();
 		testInfo.setDn("Bob");
 		SecUserInfo ud = new SecUserInfo(testInfo);
@@ -69,14 +77,31 @@ public class UserControllerTest2
                 new PreAuthenticatedAuthenticationToken(ud, null, ud.getAuthorities());
 		
 		SecurityContextHolder.getContext().setAuthentication(token);
+		
+		controller.getUserAdmin(ud);
 
+		/* This doesn't matter becuase it is stateless... */
 		mockMvc.perform(get("/users/user/admin")
 							.accept(MediaType.APPLICATION_JSON)
 							.principal(token))
 			   .andExpect(status().isOk())
 			   .andExpect(content().contentType("application/json;charset=UTF-8"))
 			   .andExpect(content().string("{\"dn\":\"Admin\"}"));
-			   */
+	}
+	
+	@Test(expected=AccessDeniedException.class)
+	public void exceptionTest()
+	{
+		UserInfo testInfo = new UserInfo();
+		testInfo.setDn("Bob");
+		SecUserInfo ud = new SecUserInfo(testInfo);
+
+		PreAuthenticatedAuthenticationToken token =
+                new PreAuthenticatedAuthenticationToken(ud, null, ud.getAuthorities());
+		
+		SecurityContextHolder.getContext().setAuthentication(token);
+		
+		controller.getUser(ud);
 	}
 
 }
